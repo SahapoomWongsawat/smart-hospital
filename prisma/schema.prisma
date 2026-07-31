@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  password      String
+  role          Role           @default(PATIENT)
+  createdAt     DateTime       @default(now())
+  lineUserId    String?        @unique
+  updatedAt     DateTime       @updatedAt
+  auditLogs     AuditLog[]
+  chatHistories ChatHistory[]
+  doctor        Doctor?
+  notifications Notification[]
+  patient       Patient?
+}
+
+model Patient {
+  id             Int             @id @default(autoincrement())
+  userId         Int             @unique
+  birthDate      DateTime?
+  phone          String?
+  address        String?
+  appointments   Appointment[]
+  labResults     LabResult[]
+  medicalRecords MedicalRecord[]
+  user           User            @relation(fields: [userId], references: [id])
+}
+
+model Department {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  appointments Appointment[]
+  doctors      Doctor[]
+}
+
+model Doctor {
+  id             Int             @id @default(autoincrement())
+  userId         Int             @unique
+  departmentId   Int
+  licenseNumber  String?
+  appointments   Appointment[]
+  department     Department      @relation(fields: [departmentId], references: [id])
+  user           User            @relation(fields: [userId], references: [id])
+  medicalRecords MedicalRecord[]
+}
+
+model Appointment {
+  id              Int               @id @default(autoincrement())
+  patientId       Int
+  doctorId        Int
+  status          AppointmentStatus @default(PENDING)
+  appointmentDate DateTime
+  departmentId    Int
+  department      Department        @relation(fields: [departmentId], references: [id])
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  queue           Queue?
+}
+
+model Queue {
+  id            Int         @id @default(autoincrement())
+  appointmentId Int         @unique
+  status        QueueStatus @default(WAITING)
+  calledAt      DateTime?
+  checkInTime   DateTime?
+  queueNumber   Int
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+model MedicalRecord {
+  id        Int      @id @default(autoincrement())
+  patientId Int
+  diagnosis String
+  treatment String?
+  createdAt DateTime @default(now())
+  doctorId  Int
+  note      String?
+  symptom   String?
+  doctor    Doctor   @relation(fields: [doctorId], references: [id])
+  patient   Patient  @relation(fields: [patientId], references: [id])
+}
+
+model LabResult {
+  id          Int      @id @default(autoincrement())
+  patientId   Int
+  title       String
+  fileUrl     String?
+  createdAt   DateTime @default(now())
+  description String?
+  patient     Patient  @relation(fields: [patientId], references: [id])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+}
+
+model News {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model HospitalSetting {
+  id             Int     @id @default(autoincrement())
+  hospitalName   String
+  latitude       Float
+  longitude      Float
+  checkInRadius  Int     @default(100)
+  queueStartTime String?
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model ChatHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  message   String
+  response  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  RECEPTION
+  PATIENT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum QueueStatus {
+  WAITING
+  CHECKED_IN
+  CALLED
+  COMPLETED
+  SKIPPED
+}
+
+enum NotificationType {
+  APPOINTMENT
+  QUEUE
+  LAB
+  SYSTEM
+}
